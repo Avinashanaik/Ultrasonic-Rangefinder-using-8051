@@ -1,0 +1,171 @@
+C51 COMPILER V9.52.0.0   MAIN                                                              09/23/2014 10:37:48 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include<REGX51.h>
+   2           
+   3          #include<intrins.h>    // for using _nop_() function
+   4          
+   5          #define data_port P2 
+   6          
+   7          sbit trig=P3^5;
+   8          sbit echo=P3^2;
+   9          
+  10          sbit rs=P1^0;
+  11          sbit rw=P1^1;
+  12          sbit en=P1^2;
+  13           
+  14           
+  15          void delay_ms(unsigned int msec)
+  16          {
+  17   1        int i,j;
+  18   1        for(i=0;i<msec;i++)
+  19   1          for(j=0;j<1275;j++);
+  20   1      }
+  21           
+  22          void lcd_cmd(unsigned char dat) // Function to send command to LCD
+  23          {
+  24   1        
+  25   1      data_port = dat;
+  26   1      rs= 0;
+  27   1      rw=0;
+  28   1      en=1;
+  29   1      delay_ms(1);
+  30   1      en=0;
+  31   1      
+  32   1      }
+  33           
+  34          void lcd_data(unsigned char dat) // Function to send data to LCD
+  35          {
+  36   1        
+  37   1      data_port = dat;
+  38   1      rs= 1;
+  39   1      rw=0;
+  40   1      en=1;
+  41   1      delay_ms(1);
+  42   1      en=0;
+  43   1      
+  44   1      }
+  45           
+  46          void lcd_string(unsigned char *str) // Function to send string to LCD
+  47          {
+  48   1      int i=0;
+  49   1      while(str[i]!='\0')
+  50   1      {
+  51   2        lcd_data(str[i]);
+  52   2        i++;
+  53   2        delay_ms(1);
+  54   2      }
+  55   1      }
+C51 COMPILER V9.52.0.0   MAIN                                                              09/23/2014 10:37:48 PAGE 2   
+
+  56          void lcd_number(int val,unsigned int field_length)      // Function to display number 
+  57          {
+  58   1        char str[5]={0,0,0,0,0};
+  59   1        int i=4,j=0;
+  60   1        while(val)
+  61   1        {
+  62   2        str[i]=val%10;
+  63   2        val=val/10;
+  64   2        i--;
+  65   2        }
+  66   1        if(field_length==-1)
+  67   1          while(str[j]==0) j++;
+  68   1        else
+  69   1          j=5-field_length;
+  70   1      
+  71   1        if(val<0) lcd_data('-');
+  72   1        for(i=j;i<5;i++)
+  73   1        {
+  74   2        lcd_data(48+str[i]);
+  75   2        }
+  76   1      }
+  77          void send_pulse(void) //to generate 10 microseconds delay
+  78          {
+  79   1        TH0=0x00;
+  80   1        TL0=0x00; 
+  81   1       trig=1;
+  82   1       _nop_();_nop_();_nop_();_nop_();_nop_(); //each _nop_() generates 1u sec of delay 
+  83   1       _nop_();_nop_();_nop_();_nop_();_nop_();
+  84   1       trig=0;
+  85   1          
+  86   1      } 
+  87           
+  88          unsigned int get_range(void)
+  89          {
+  90   1       int range=0;
+  91   1       int timerval;
+  92   1       
+  93   1       send_pulse();
+  94   1        
+  95   1        while(!INT0);          
+  96   1        while(INT0);        
+  97   1        timerval = TH0;
+  98   1        timerval = (timerval << 8) | TL0;
+  99   1        TH0=0xFF;
+ 100   1        TL0=0xFF;
+ 101   1       lcd_cmd(0xc0);
+ 102   1       delay_ms(2);
+ 103   1       lcd_string("Distance:");
+ 104   1       lcd_cmd(0xc9);
+ 105   1       if(timerval<35000)  //actually you need to use 38000 but the sensor may not work at higher levels 
+ 106   1       {
+ 107   2        range=timerval/59;
+ 108   2       }
+ 109   1       else
+ 110   1       {
+ 111   2         range = 0;
+ 112   2       }
+ 113   1        lcd_number(range,3);
+ 114   1       lcd_string("cm");
+ 115   1        return range; 
+ 116   1       }
+ 117           
+C51 COMPILER V9.52.0.0   MAIN                                                              09/23/2014 10:37:48 PAGE 3   
+
+ 118          void main()
+ 119          {
+ 120   1        lcd_cmd(0x38);
+ 121   1        lcd_cmd(0x0c);
+ 122   1        delay_ms(2);
+ 123   1        lcd_cmd(0x01);
+ 124   1        delay_ms(2);
+ 125   1        lcd_cmd(0x80);
+ 126   1        delay_ms(2);
+ 127   1        
+ 128   1        lcd_string("Range finder");
+ 129   1        delay_ms(20);
+ 130   1        
+ 131   1        TMOD=0x09;//timer0 in 16 bit mode with gate enable
+ 132   1        TR0=1;//timer run enabled
+ 133   1        TH0=0x00;
+ 134   1        TL0=0x00;
+ 135   1       
+ 136   1        echo = 1; //setting pin P3.2 
+ 137   1           
+ 138   1        
+ 139   1       while(1)
+ 140   1       { 
+ 141   2         get_range();
+ 142   2         delay_ms(2);   
+ 143   2       }
+ 144   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    508    ----
+   CONSTANT SIZE    =     31    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      22
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
